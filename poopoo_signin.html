@@ -1,0 +1,341 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>每日签到奖励系统</title>
+  <style>
+    /* 基本页面样式 */
+    body {
+      font-family: Arial, sans-serif;
+      text-align: center;
+      margin: 20px;
+      background-color: #f9f9f9;
+    }
+    h1 {
+      color: #333;
+    }
+    /* 加载条区域 */
+    #loadingBarContainer {
+      width: 350px;
+      height: 30px;
+      background-color: #ddd;
+      border-radius: 15px;
+      margin: 20px auto;
+      position: relative;
+      overflow: hidden;
+    }
+    #loadingBar {
+      width: 100%;
+      height: 100%;
+      background-color: #d4fcd4; /* 浅绿色背景 */
+      position: absolute;
+      top: 0;
+      left: 0;
+    }
+    #loadingProgress {
+      height: 100%;
+      background-color: #76c776; /* 深绿色进度填充 */
+      width: 0%;
+    }
+    /* 奖励图标样式 */
+    .reward-milestone {
+      position: absolute;
+      top: 0;
+      width: 30px;
+      height: 30px;
+      line-height: 30px;
+      font-size: 18px;
+      cursor: pointer;
+      transform: translateX(-50%) scale(1);
+      transition: transform 0.3s ease, box-shadow 0.3s ease;
+    }
+    /* 达成奖励：变大且发光 */
+    .reward-active {
+      color: #f39c12;
+      transform: translateX(-50%) scale(1.3);
+      box-shadow: 0 0 10px 2px rgba(243,156,18,0.8);
+    }
+    /* 未达成奖励 */
+    .reward-inactive {
+      color: #aaa;
+      transform: translateX(-50%) scale(1);
+    }
+    /* 奖励信息弹窗 */
+    #rewardInfo {
+      display: none;
+      position: fixed;
+      top: 40%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      background-color: #fff;
+      border: 1px solid #ccc;
+      padding: 20px;
+      border-radius: 10px;
+      z-index: 1000;
+    }
+    /* 日历区域 */
+    .calendar {
+      display: grid;
+      grid-template-columns: repeat(7, 1fr);
+      gap: 5px;
+      max-width: 350px;
+      margin: 20px auto;
+    }
+    .day {
+      border: 1px solid #ccc;
+      border-radius: 4px;
+      padding: 5px;
+      min-height: 60px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      position: relative;
+      background-color: #fff;
+    }
+    /* 已签到日期 */
+    .signed-in {
+      background-color: #a8e6cf;
+    }
+    .day-number {
+      font-size: 18px;
+      font-weight: bold;
+    }
+    /* 日历中每行末尾的小奖励图标 */
+    .reward-icon {
+      font-size: 20px;
+      margin-top: 5px;
+    }
+    /* 签到按钮 */
+    #signinBtn {
+      padding: 10px 20px;
+      font-size: 16px;
+      cursor: pointer;
+      margin-top: 20px;
+    }
+    #signinBtn:disabled {
+      background-color: #ccc;
+      cursor: not-allowed;
+    }
+  </style>
+</head>
+<body>
+  <h1>每日签到奖励</h1>
+
+  <!-- 加载条区域 -->
+  <div id="loadingBarContainer">
+    <div id="loadingBar">
+      <div id="loadingProgress"></div>
+      <!-- 奖励图标将在下面通过 JavaScript 动态添加 -->
+    </div>
+  </div>
+
+  <!-- 奖励信息弹窗 -->
+  <div id="rewardInfo"></div>
+
+  <!-- 日历区域 -->
+  <div class="calendar" id="calendar">
+    <!-- 日历单元格由 JS 动态生成 -->
+  </div>
+
+  <button id="signinBtn">今日签到</button>
+
+  <script>
+    (function() {
+      // 获取今天的日期（格式 YYYY-MM-DD）
+      const today = new Date();
+      const yyyy = today.getFullYear();
+      const mm = String(today.getMonth() + 1).padStart(2, '0');
+      const dd = String(today.getDate()).padStart(2, '0');
+      const todayStr = `${yyyy}-${mm}-${dd}`;
+      // 构造一个今天日期对象（时分秒归零，仅比较日期）
+      const todayDate = new Date(yyyy, today.getMonth(), today.getDate());
+
+      // 获取本月总天数
+      const daysInMonth = new Date(yyyy, today.getMonth() + 1, 0).getDate();
+
+      // 从 localStorage 获取已签到日期数组
+      let signedInDates = JSON.parse(localStorage.getItem('signedInDates')) || [];
+      // 计算本月累计签到天数（只考虑当前年份和月份）
+      let signInCount = signedInDates.filter(dateStr => {
+        const [y, m, d] = dateStr.split('-');
+        return parseInt(y) === yyyy && parseInt(m) === (today.getMonth() + 1);
+      }).length;
+
+      // 更新加载条进度（百分比填充）
+      const progressPercent = (signInCount / daysInMonth) * 100;
+      document.getElementById('loadingProgress').style.width = progressPercent + '%';
+
+      // 定义奖励里程碑
+      const milestones = [7, 14, 21, 28];
+
+      // 动态添加奖励图标到加载条中
+      const loadingBar = document.getElementById('loadingBar');
+      // 先移除已有图标（若存在）
+      document.querySelectorAll('.reward-milestone').forEach(icon => icon.remove());
+
+      milestones.forEach(milestone => {
+        // 计算图标在加载条中的位置（按百分比）
+        let leftPercent = (milestone / daysInMonth) * 100;
+        const rewardIcon = document.createElement('div');
+        rewardIcon.classList.add('reward-milestone');
+        rewardIcon.setAttribute('data-milestone', milestone);
+        // 根据是否达到里程碑设置样式
+        if (signInCount >= milestone) {
+          rewardIcon.classList.add('reward-active');
+        } else {
+          rewardIcon.classList.add('reward-inactive');
+        }
+        rewardIcon.textContent = "🎁";
+        rewardIcon.style.left = leftPercent + '%';
+        // 点击奖励图标显示奖励详情
+        rewardIcon.addEventListener('click', function(event) {
+          event.stopPropagation();
+          showRewardInfo(milestone);
+        });
+        loadingBar.appendChild(rewardIcon);
+      });
+
+      // 函数：显示奖励详情
+      function showRewardInfo(milestone) {
+        const rewardInfoDiv = document.getElementById('rewardInfo');
+        let content = "";
+        switch(milestone) {
+          case 7:
+            content = "奖励：7天签到 - 小奖品：瑞幸咖啡一杯！";
+            break;
+          case 14:
+            content = "奖励：14天签到 - 小奖品：霸王茶姬一杯！";
+            break;
+          case 21:
+            content = "奖励：21天签到 - 中等奖品：麦当劳早餐一份！";
+            break;
+          case 28:
+            content = "奖励：28天签到 - 超级大奖品：超级碗外卖一份！";
+            break;
+          default:
+            content = "奖励信息";
+        }
+        rewardInfoDiv.textContent = content;
+        rewardInfoDiv.style.display = 'block';
+      }
+
+      // 点击页面其他地方隐藏奖励信息
+      document.addEventListener('click', function() {
+        document.getElementById('rewardInfo').style.display = 'none';
+      });
+
+      // 生成日历区域
+      const calendarEl = document.getElementById('calendar');
+      const signInBtn = document.getElementById('signinBtn');
+
+      for (let i = 1; i <= daysInMonth; i++) {
+        const dayEl = document.createElement('div');
+        dayEl.classList.add('day');
+
+        // 创建显示日期数字
+        const dayNumEl = document.createElement('div');
+        dayNumEl.classList.add('day-number');
+        dayNumEl.textContent = i;
+        dayEl.appendChild(dayNumEl);
+
+        // 如果本行最后一格，添加小奖励图标（仅作为装饰）
+        if ((i - 1) % 7 === 6) {
+          const calRewardEl = document.createElement('div');
+          calRewardEl.classList.add('reward-icon');
+          calRewardEl.textContent = "🏆";
+          dayEl.appendChild(calRewardEl);
+        }
+        else{
+          const calRewardEl = document.createElement('div');
+          calRewardEl.classList.add('reward-icon');
+          calRewardEl.textContent = "💩";
+          dayEl.appendChild(calRewardEl);
+        }
+
+        // 生成当前单元格对应的日期字符串
+        const dayStr = `${yyyy}-${mm}-${String(i).padStart(2, '0')}`;
+        const cellDate = new Date(yyyy, today.getMonth(), i);
+
+        // 如果该日期已签到，则添加已签到样式
+        if (signedInDates.includes(dayStr)) {
+          dayEl.classList.add('signed-in');
+        } else {
+          // 如果日期在今天之前且未签到，背景设为灰色
+          if (cellDate < todayDate) {
+            dayEl.style.backgroundColor = "#ccc";
+          }
+        }
+        calendarEl.appendChild(dayEl);
+      }
+
+      // 如果今天已签到，则禁用签到按钮
+      if (signedInDates.includes(todayStr)) {
+        signInBtn.disabled = true;
+        signInBtn.textContent = "今日已签到";
+      }
+
+      // 签到按钮点击事件
+      signInBtn.addEventListener('click', function() {
+        if (!signedInDates.includes(todayStr)) {
+          signedInDates.push(todayStr);
+          localStorage.setItem('signedInDates', JSON.stringify(signedInDates));
+
+          // 更新日历中今天对应单元格样式
+          const dayCells = document.getElementsByClassName('day');
+          for (let cell of dayCells) {
+            const numberEl = cell.querySelector('.day-number');
+            if (numberEl && numberEl.textContent === String(today.getDate())) {
+              cell.classList.add('signed-in');
+              cell.style.backgroundColor = "";
+              break;
+            }
+          }
+
+          // 更新本月累计签到天数及加载条进度
+          signInCount = signedInDates.filter(dateStr => {
+            const [y, m, d] = dateStr.split('-');
+            return parseInt(y) === yyyy && parseInt(m) === (today.getMonth() + 1);
+          }).length;
+          const newProgressPercent = (signInCount / daysInMonth) * 100;
+          document.getElementById('loadingProgress').style.width = newProgressPercent + '%';
+
+          // 更新奖励图标状态
+          document.querySelectorAll('.reward-milestone').forEach(icon => {
+            const milestone = parseInt(icon.getAttribute('data-milestone'));
+            if (signInCount >= milestone) {
+              icon.classList.remove('reward-inactive');
+              icon.classList.add('reward-active');
+            }
+          });
+
+          // 计算距离下一个奖励所需的天数
+          let nextRewardMessage = "";
+          if (signInCount < 7) {
+            nextRewardMessage = "离下一个奖励还有 " + (7 - signInCount) + " 天";
+          } else if (signInCount < 14) {
+            nextRewardMessage = "离下一个奖励还有 " + (14 - signInCount) + " 天";
+          } else if (signInCount < 21) {
+            nextRewardMessage = "离下一个奖励还有 " + (21 - signInCount) + " 天";
+          } else if (signInCount < 28) {
+            nextRewardMessage = "离下一个奖励还有 " + (28 - signInCount) + " 天";
+          } else {
+            // 如果本月签到已满28天，则计算从今天到本月结束加上下月7日之间的天数
+            let daysLeft = (daysInMonth - today.getDate()) + 7;
+            nextRewardMessage = "离下一个奖励还有 " + daysLeft + " 天";
+          }
+
+          // 显示提示信息
+          alert("签到成功！" + nextRewardMessage);
+
+          signInBtn.disabled = true;
+          signInBtn.textContent = "今日已签到";
+        } else {
+          alert("您今天已经签到过了！");
+        }
+      });
+    })();
+  </script>
+</body>
+</html>
