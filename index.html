@@ -121,7 +121,7 @@
   </style>
 </head>
 <body>
-  <h1>每日签到奖励</h1>
+  <h1>宝贝每日Poo Poo签到</h1>
 
   <!-- 加载条区域 -->
   <div id="loadingBarContainer">
@@ -313,26 +313,26 @@
           // 计算距离下一个奖励所需的天数
           let nextRewardMessage = "";
           if (signInCount < 7) {
-            nextRewardMessage = "离下一个奖励还有 " + (7 - signInCount) + " 天";
+            nextRewardMessage = "离下一个Poo Poo奖励还有 " + (7 - signInCount) + " 天";
           } else if (signInCount < 14) {
-            nextRewardMessage = "离下一个奖励还有 " + (14 - signInCount) + " 天";
+            nextRewardMessage = "离下一个Poo Poo奖励还有 " + (14 - signInCount) + " 天";
           } else if (signInCount < 21) {
-            nextRewardMessage = "离下一个奖励还有 " + (21 - signInCount) + " 天";
+            nextRewardMessage = "离下一个Poo Poo奖励还有 " + (21 - signInCount) + " 天";
           } else if (signInCount < 28) {
-            nextRewardMessage = "离下一个奖励还有 " + (28 - signInCount) + " 天";
+            nextRewardMessage = "离下一个Poo Poo奖励还有 " + (28 - signInCount) + " 天";
           } else {
             // 如果本月签到已满28天，则计算从今天到本月结束加上下月7日之间的天数
             let daysLeft = (daysInMonth - today.getDate()) + 7;
-            nextRewardMessage = "离下一个奖励还有 " + daysLeft + " 天";
+            nextRewardMessage = "离下一个Poo Poo奖励还有 " + daysLeft + " 天";
           }
 
           // 显示提示信息
-          alert("签到成功！" + nextRewardMessage);
+          alert("Poo Poo签到成功！" + nextRewardMessage);
 
           signInBtn.disabled = true;
-          signInBtn.textContent = "今日已签到";
+          signInBtn.textContent = "今日已Poo Poo签到";
         } else {
-          alert("您今天已经签到过了！");
+          alert("您今天已经Poo Poo签到过了！");
         }
       });
     })();
